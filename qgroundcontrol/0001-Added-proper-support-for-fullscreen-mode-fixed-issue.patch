@@ -1,0 +1,101 @@
+From 64b543c4c1862609f48fb294dd11e40bc66ea122 Mon Sep 17 00:00:00 2001
+From: lm <mail@qgroundcontrol.org>
+Date: Fri, 11 Mar 2011 18:00:34 +0100
+Subject: [PATCH] Added proper support for fullscreen mode, fixed issue with window state update on perspective change
+
+---
+ src/ui/MainWindow.cc |   23 ++++++++++++++++++-----
+ src/ui/MainWindow.h  |    1 +
+ src/ui/MainWindow.ui |    2 +-
+ 3 files changed, 20 insertions(+), 6 deletions(-)
+
+diff --git a/src/ui/MainWindow.cc b/src/ui/MainWindow.cc
+index 96f81af..89dc402 100644
+--- a/src/ui/MainWindow.cc
++++ b/src/ui/MainWindow.cc
+@@ -172,6 +172,9 @@ MainWindow::MainWindow(QWidget *parent):
+         LinkManager::instance()->addProtocol(link, mavlink);
+         link->connect();
+     }
++
++    // Initialize window state
++    windowStateVal = windowState();
+ }
+ 
+ MainWindow::~MainWindow()
+@@ -1781,6 +1784,11 @@ void MainWindow::UASCreated(UASInterface* uas)
+ 
+     // Custom widgets, added last to all menus and layouts
+     buildCustomWidget();
++    // Restore the mainwindow size
++    if (settings.contains(getWindowGeometryKey()))
++    {
++        restoreGeometry(settings.value(getWindowGeometryKey()).toByteArray());
++    }
+ }
+ 
+ /**
+@@ -1790,6 +1798,10 @@ void MainWindow::clearView()
+ {
+     // Save current state
+     if (UASManager::instance()->getUASList().count() > 0) settings.setValue(getWindowStateKey(), saveState(QGC::applicationVersion()));
++    // Although we want save the state of the window, we do not want to change the top-leve state (minimized, maximized, etc)
++    // therefore this state is stored here and restored after applying the rest of the settings in the new
++    // perspective.
++    windowStateVal = this->windowState();
+     settings.setValue(getWindowGeometryKey(), saveGeometry());
+ 
+     QAction* temp;
+@@ -1997,11 +2009,11 @@ void MainWindow::presentView()
+     // Restore window state
+     if (UASManager::instance()->getUASList().count() > 0)
+     {
+-        // Restore the mainwindow size
+-        if (settings.contains(getWindowGeometryKey()))
+-        {
+-            restoreGeometry(settings.value(getWindowGeometryKey()).toByteArray());
+-        }
++//        // Restore the mainwindow size
++//        if (settings.contains(getWindowGeometryKey()))
++//        {
++//            restoreGeometry(settings.value(getWindowGeometryKey()).toByteArray());
++//        }
+ 
+         // Restore the widget positions and size
+         if (settings.contains(getWindowStateKey()))
+@@ -2020,6 +2032,7 @@ void MainWindow::presentView()
+         }
+     }
+ 
++    this->setWindowState(windowStateVal);
+     this->show();
+ }
+ 
+diff --git a/src/ui/MainWindow.h b/src/ui/MainWindow.h
+index 88e79e7..f242f33 100644
+--- a/src/ui/MainWindow.h
++++ b/src/ui/MainWindow.h
+@@ -426,6 +426,7 @@ protected:
+     QString styleFileName;
+     bool autoReconnect;
+     QGC_MAINWINDOW_STYLE currentStyle;
++    Qt::WindowStates windowStateVal;
+ 
+ private:
+     Ui::MainWindow ui;
+diff --git a/src/ui/MainWindow.ui b/src/ui/MainWindow.ui
+index d1bd311..d0d01ab 100644
+--- a/src/ui/MainWindow.ui
++++ b/src/ui/MainWindow.ui
+@@ -445,7 +445,7 @@
+     <string>Fullscreen</string>
+    </property>
+    <property name="shortcut">
+-    <string>Alt+Return</string>
++    <string>Meta+Return</string>
+    </property>
+   </action>
+   <action name="actionNormal">
+-- 
+1.7.3.1.msysgit.0
+
